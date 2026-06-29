@@ -1,11 +1,15 @@
 import axios from "axios";
 
+// Base URL from Vercel/Env
+const API_BASE = import.meta.env.VITE_API_URL;
+
+// Create axios instance
 const API = axios.create({
-  baseURL: "http://localhost:5000/api",
-  withCredentials: true, // optional but useful if you later use cookies
+  baseURL: `${API_BASE}/api`,
+  withCredentials: true,
 });
 
-// Attach token automatically
+// Attach JWT token automatically
 API.interceptors.request.use(
   (req) => {
     const token = localStorage.getItem("token");
@@ -23,11 +27,11 @@ API.interceptors.request.use(
 API.interceptors.response.use(
   (response) => response,
   (error) => {
-    // If token is invalid or expired
+    // Handle unauthorized access
     if (error.response?.status === 401) {
       localStorage.removeItem("token");
 
-      // Optional: force redirect to login
+      // Redirect to login page
       window.location.href = "/login";
     }
 
