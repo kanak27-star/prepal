@@ -22,9 +22,10 @@ export default function History() {
     try {
       const res = await API.get("/interview/my");
 
-      setInterviews(res.data.interviews || []);
+      setInterviews(res.data.sessions || []);
     } catch (err) {
-      console.log(err);
+      console.error("History Error:", err);
+      setInterviews([]);
     } finally {
       setLoading(false);
     }
@@ -35,7 +36,7 @@ export default function History() {
 
     if (search.trim()) {
       data = data.filter((item) =>
-        (item.role || "AI Interview")
+        (item.currentQuestion || "AI Interview")
           .toLowerCase()
           .includes(search.toLowerCase())
       );
@@ -43,19 +44,39 @@ export default function History() {
 
     switch (sort) {
       case "highest":
-        data.sort(
-          (a, b) =>
-            (b.averageScore || 0) -
-            (a.averageScore || 0)
-        );
+        data.sort((a, b) => {
+          const scoreA =
+            a.questions?.length > 0
+              ? a.questions.reduce((s, q) => s + (q.score || 0), 0) /
+                a.questions.length
+              : 0;
+
+          const scoreB =
+            b.questions?.length > 0
+              ? b.questions.reduce((s, q) => s + (q.score || 0), 0) /
+                b.questions.length
+              : 0;
+
+          return scoreB - scoreA;
+        });
         break;
 
       case "lowest":
-        data.sort(
-          (a, b) =>
-            (a.averageScore || 0) -
-            (b.averageScore || 0)
-        );
+        data.sort((a, b) => {
+          const scoreA =
+            a.questions?.length > 0
+              ? a.questions.reduce((s, q) => s + (q.score || 0), 0) /
+                a.questions.length
+              : 0;
+
+          const scoreB =
+            b.questions?.length > 0
+              ? b.questions.reduce((s, q) => s + (q.score || 0), 0) /
+                b.questions.length
+              : 0;
+
+          return scoreA - scoreB;
+        });
         break;
 
       default:
@@ -71,8 +92,7 @@ export default function History() {
 
   return (
     <DashboardLayout>
-
-      <div className="max-w-6xl mx-auto px-6 py-8">
+      <div className="max-w-7xl mx-auto">
 
         <div className="flex flex-col md:flex-row md:items-center md:justify-between gap-4 mb-8">
 
@@ -105,17 +125,9 @@ export default function History() {
               }
               className="bg-slate-900 border border-slate-700 rounded-xl px-4 py-2 text-white"
             >
-              <option value="latest">
-                Latest
-              </option>
-
-              <option value="highest">
-                Highest Score
-              </option>
-
-              <option value="lowest">
-                Lowest Score
-              </option>
+              <option value="latest">Latest</option>
+              <option value="highest">Highest Score</option>
+              <option value="lowest">Lowest Score</option>
             </select>
 
           </div>
@@ -127,13 +139,10 @@ export default function History() {
         ) : filteredInterviews.length === 0 ? (
           <EmptyHistory />
         ) : (
-          <HistoryList
-            interviews={filteredInterviews}
-          />
+          <HistoryList interviews={filteredInterviews} />
         )}
 
       </div>
-
     </DashboardLayout>
   );
 }

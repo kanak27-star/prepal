@@ -1,12 +1,14 @@
 import { useEffect, useState } from "react";
 import API from "../api/api";
+import DashboardLayout from "../layouts/DashboardLayout";
+
 import {
+  ResponsiveContainer,
   BarChart,
   Bar,
   XAxis,
   YAxis,
   Tooltip,
-  ResponsiveContainer,
   PieChart,
   Pie,
   Cell,
@@ -19,87 +21,65 @@ export default function Analytics() {
   const [loading, setLoading] = useState(true);
 
   useEffect(() => {
-    API.get("/interview/my")
-      .then((res) => setSessions(res.data.sessions || []))
-      .catch((err) => console.error(err))
-      .finally(() => setLoading(false));
+    loadAnalytics();
   }, []);
 
-  // =========================
-  // SAFE DEFAULTS
-  // =========================
+  const loadAnalytics = async () => {
+    try {
+      const res = await API.get("/interview/my");
+
+      setSessions(res.data.sessions || []);
+    } catch (err) {
+      console.error("Analytics Error:", err);
+      setSessions([]);
+    } finally {
+      setLoading(false);
+    }
+  };
+
   const safeSessions = sessions || [];
 
   let totalScore = 0;
-  let questionCount = 0;
+  let totalQuestions = 0;
 
-  const scoreTrend = [];
+  const trendData = [];
 
-  // =========================
-  // MAIN LOOP (SAFE)
-  // =========================
-  safeSessions.forEach((s, idx) => {
-    const questions = s.questions || [];
+  safeSessions.forEach((session, index) => {
+    const questions = session.questions || [];
 
-    let sessionTotal = 0;
-    let sessionCount = 0;
+    let sessionScore = 0;
 
     questions.forEach((q) => {
-      const score = q.score || 0;
-
-      totalScore += score;
-      questionCount++;
-
-      sessionTotal += score;
-      sessionCount++;
+      totalScore += q.score || 0;
+      totalQuestions++;
+      sessionScore += q.score || 0;
     });
 
-    scoreTrend.push({
-      session: `S${idx + 1}`,
-      score: sessionCount ? sessionTotal / sessionCount : 0,
-    });
-  });
-
-  const avg =
-    questionCount === 0
-      ? 0
-      : (totalScore / questionCount).toFixed(1);
-
-  // =========================
-  // SKILL DISTRIBUTION
-  // =========================
-  const skillsMap = {};
-
-  safeSessions.forEach((s) => {
-    (s.questions || []).forEach((q) => {
-      const key = q.category || "General";
-
-      if (!skillsMap[key]) skillsMap[key] = [];
-
-      skillsMap[key].push(q.score || 0);
+    trendData.push({
+      session: `S${index + 1}`,
+      score:
+        questions.length > 0
+          ? Number(
+              (
+                sessionScore /
+                questions.length
+              ).toFixed(1)
+            )
+          : 0,
     });
   });
 
-  const skillsData = Object.keys(skillsMap).map((key) => {
-    const arr = skillsMap[key];
+  const averageScore =
+    totalQuestions > 0
+      ? (totalScore / totalQuestions).toFixed(1)
+      : "0.0";
 
-    return {
-      name: key,
-      value: arr.length
-        ? (arr.reduce((a, b) => a + b, 0) / arr.length).toFixed(1)
-        : 0,
-    };
-  });
+  let good = 0;
+  let average = 0;
+  let poor = 0;
 
-  // =========================
-  // PERFORMANCE SPLIT
-  // =========================
-  let good = 0,
-    average = 0,
-    poor = 0;
-
-  safeSessions.forEach((s) => {
-    (s.questions || []).forEach((q) => {
+  safeSessions.forEach((session) => {
+    (session.questions || []).forEach((q) => {
       const score = q.score || 0;
 
       if (score >= 8) good++;
@@ -114,88 +94,132 @@ export default function Analytics() {
     { name: "Poor", value: poor },
   ];
 
-  const COLORS = ["#22C55E", "#F97316", "#EF4444"];
+  const COLORS = ["#22C55E", "#F59E0B", "#EF4444"];
 
-  // =========================
-  // LOADING UI
-  // =========================
   if (loading) {
     return (
-      <div className="min-h-screen flex items-center justify-center bg-slate-950 text-white">
-        Loading analytics...
-      </div>
+      <DashboardLayout>
+        <div className="text-white text-center mt-20">
+          Loading Analytics...
+        </div>
+      </DashboardLayout>
     );
   }
 
   return (
-    <div className="min-h-screen bg-slate-950 text-white p-6 space-y-6">
+    <DashboardLayout>
+      <div className="space-y-6">
 
-      {/* HEADER */}
-      <div className="bg-slate-900 p-5 rounded-xl">
-        <h2 className="text-xl font-bold">Analytics Dashboard</h2>
+        <div className="bg-slate-900 p-6 rounded-2xl">
 
-        <div className="grid grid-cols-1 md:grid-cols-3 gap-4 mt-4 text-slate-300">
-          <p>📊 Interviews: {safeSessions.length}</p>
-          <p>⭐ Avg Score: {avg}/10</p>
-          <p>🔥 Total Questions: {questionCount}</p>
+          <h1 className="text-3xl font-bold text-white">
+            Analytics Dashboard
+          </h1>
+
+          <div className="grid md:grid-cols-3 gap-4 mt-6">
+
+            <div className="bg-slate-800 rounded-xl p-4">
+              <p className="text-slate-400">
+                Interviews
+              </p>
+
+              <h2 className="text-3xl text-white font-bold">
+                {safeSessions.length}
+              </h2>
+            </div>
+
+            <div className="bg-slate-800 rounded-xl p-4">
+              <p className="text-slate-400">
+                Average Score
+              </p>
+
+              <h2 className="text-3xl text-white font-bold">
+                {averageScore}/10
+              </h2>
+            </div>
+
+            <div className="bg-slate-800 rounded-xl p-4">
+              <p className="text-slate-400">
+                Questions Answered
+              </p>
+
+              <h2 className="text-3xl text-white font-bold">
+                {totalQuestions}
+              </h2>
+            </div>
+
+          </div>
+
         </div>
-      </div>
 
-      {/* SCORE TREND */}
-      <div className="bg-slate-900 p-5 rounded-xl">
-        <h3 className="mb-4 font-semibold">Score Trend</h3>
+        <div className="bg-slate-900 p-6 rounded-2xl">
+          <h2 className="text-xl font-bold mb-4 text-white">
+            Score Trend
+          </h2>
 
-        <ResponsiveContainer width="100%" height={250}>
-          <LineChart data={scoreTrend}>
-            <XAxis dataKey="session" stroke="#ccc" />
-            <YAxis stroke="#ccc" />
-            <Tooltip />
-            <Line type="monotone" dataKey="score" stroke="#6366F1" />
-          </LineChart>
-        </ResponsiveContainer>
-      </div>
-
-      {/* CHARTS */}
-      <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-
-        {/* SKILLS */}
-        <div className="bg-slate-900 p-5 rounded-xl">
-          <h3 className="mb-4 font-semibold">Skill Performance</h3>
-
-          <ResponsiveContainer width="100%" height={250}>
-            <BarChart data={skillsData}>
-              <XAxis dataKey="name" stroke="#ccc" />
-              <YAxis stroke="#ccc" />
+          <ResponsiveContainer width="100%" height={300}>
+            <LineChart data={trendData}>
+              <XAxis dataKey="session" />
+              <YAxis />
               <Tooltip />
-              <Bar dataKey="value" fill="#22C55E" />
-            </BarChart>
+              <Line
+                type="monotone"
+                dataKey="score"
+                stroke="#06B6D4"
+              />
+            </LineChart>
           </ResponsiveContainer>
         </div>
 
-        {/* PIE */}
-        <div className="bg-slate-900 p-5 rounded-xl">
-          <h3 className="mb-4 font-semibold">Performance Split</h3>
+        <div className="grid md:grid-cols-2 gap-6">
 
-          <ResponsiveContainer width="100%" height={250}>
-            <PieChart>
-              <Pie
-                data={pieData}
-                dataKey="value"
-                nameKey="name"
-                outerRadius={90}
-                label
-              >
-                {pieData.map((_, i) => (
-                  <Cell key={i} fill={COLORS[i]} />
-                ))}
-              </Pie>
-              <Tooltip />
-            </PieChart>
-          </ResponsiveContainer>
+          <div className="bg-slate-900 p-6 rounded-2xl">
+            <h2 className="text-xl font-bold mb-4 text-white">
+              Performance Split
+            </h2>
+
+            <ResponsiveContainer width="100%" height={300}>
+              <PieChart>
+                <Pie
+                  data={pieData}
+                  dataKey="value"
+                  nameKey="name"
+                  outerRadius={100}
+                  label
+                >
+                  {pieData.map((_, index) => (
+                    <Cell
+                      key={index}
+                      fill={COLORS[index]}
+                    />
+                  ))}
+                </Pie>
+                <Tooltip />
+              </PieChart>
+            </ResponsiveContainer>
+          </div>
+
+          <div className="bg-slate-900 p-6 rounded-2xl">
+            <h2 className="text-xl font-bold mb-4 text-white">
+              Session Scores
+            </h2>
+
+            <ResponsiveContainer width="100%" height={300}>
+              <BarChart data={trendData}>
+                <XAxis dataKey="session" />
+                <YAxis />
+                <Tooltip />
+                <Bar
+                  dataKey="score"
+                  fill="#06B6D4"
+                />
+              </BarChart>
+            </ResponsiveContainer>
+          </div>
+
         </div>
 
       </div>
-
-    </div>
+    </DashboardLayout>
   );
 }
