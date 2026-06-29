@@ -4,18 +4,33 @@ const cors = require("cors");
 const app = express();
 
 // =========================
-// MIDDLEWARE
+// CORS CONFIG (PRODUCTION READY)
 // =========================
 
-// CORS (PUT HERE ✅)
+const allowedOrigins = [
+  "http://localhost:5173",
+  "https://prepal-git-main-kanaks-projects-ce135129.vercel.app"
+];
+
 app.use(
   cors({
-    origin: "http://localhost:5173", // change to Vercel URL later
+    origin: function (origin, callback) {
+      // allow requests with no origin (like Postman or mobile apps)
+      if (!origin) return callback(null, true);
+
+      if (allowedOrigins.includes(origin)) {
+        return callback(null, true);
+      }
+
+      return callback(new Error("Not allowed by CORS"));
+    },
     credentials: true,
   })
 );
 
-// Body parser
+// =========================
+// BODY PARSERS
+// =========================
 app.use(express.json());
 app.use(express.urlencoded({ extended: true }));
 
@@ -25,6 +40,7 @@ app.use(express.urlencoded({ extended: true }));
 app.use("/api/auth", require("./routes/auth"));
 app.use("/api/interview", require("./routes/interview"));
 app.use("/api/dashboard", require("./routes/dashboardRoutes"));
+
 // =========================
 // HEALTH CHECK
 // =========================
